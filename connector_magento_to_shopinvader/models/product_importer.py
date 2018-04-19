@@ -54,9 +54,13 @@ class CatalogImageImporter(Component):
         if image:
             return image
         else:
-            filename, extension = os.path.splitext(image_data['file'])
+            if image_data['label']:
+                filename, extension = os.path.splitext(image_data['file'])
+                name = image_data['label'] + extension
+            else:
+                name = image_data['file'][5:]
             return self.env['storage.image'].create({
-                'name': image_data['label'] + extension,
+                'name': name,
                 'data': base64.b64encode(binary),
                 'magento_file': image_data['file'],
                 })
