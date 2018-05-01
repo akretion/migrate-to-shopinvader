@@ -10,22 +10,45 @@ from odoo.addons.component.core import Component
 from odoo.addons.connector.components.mapper import mapping
 
 
-class MagentoProductProduct(models.Model):
-    _inherit = 'magento.product.product'
+class BindingDataMixin(models.AbstractModel):
+    _name = 'binding.data.mixin'
 
     data = fields.Serialized()
+
+    def fields_get(self):
+        res = super(BindingDataMixin, self).fields_get()
+        res['data']['translate'] = True
+        return res
+
+    def write(self, vals):
+        if 'data' in vals:
+            self.ensure_one()
+            lang = self._context.get('lang', 'en_US')
+            data = self.data
+            data[lang] = vals['data']
+            vals['data'] = data
+        return super(BindingDataMixin, self).write(vals)
+
+    def create(self, vals):
+        if 'data' in vals:
+            lang = self._context.get('lang', 'en_US')
+            vals['data'] = {lang: vals['data']}
+        return super(BindingDataMixin, self).write(vals)
+
+
+class MagentoProductProduct(models.Model):
+    _inherit = ['magento.product.product', 'binding.data.mixin']
+    _name = 'magento.product.product'
 
 
 class MagentoProductTemplate(models.Model):
-    _inherit = 'magento.product.template'
-
-    data = fields.Serialized()
+    _inherit = ['magento.product.template', 'binding.data.mixin']
+    _name = 'magento.product.template'
 
 
 class MagentoProductCategory(models.Model):
-    _inherit = 'magento.product.category'
-
-    data = fields.Serialized()
+    _inherit = ['magento.product.category', 'binding.data.mixin']
+    _name = 'magento.product.category'
 
 
 class ProductImportMapper(Component):
