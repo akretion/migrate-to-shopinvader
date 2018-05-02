@@ -12,8 +12,8 @@ class StorageImage(models.Model):
     magento_file = fields.Char()
 
 
-class ProductImage(models.Model):
-    _inherit = 'product.image'
+class ProductImageRelation(models.Model):
+    _inherit = 'product.image.relation'
 
     template_binding_id = fields.Many2one(
         'magento.product.template')

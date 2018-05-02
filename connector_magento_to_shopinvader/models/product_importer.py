@@ -15,9 +15,13 @@ class BindingDataMixin(models.AbstractModel):
 
     data = fields.Serialized()
 
-    def fields_get(self):
-        res = super(BindingDataMixin, self).fields_get()
-        res['data']['translate'] = True
+    @api.model
+    def fields_get(self, allfields=None, attributes=None):
+        res = super(BindingDataMixin, self).fields_get(
+            allfields=allfields,
+            attributes=attributes)
+        if 'data' in res:
+            res['data']['translate'] = True
         return res
 
     def write(self, vals):
@@ -103,11 +107,11 @@ class CatalogImageImporter(Component):
         images = self._get_images()
         for image_data in self._sort_images(images):
             image = self._get_or_create_image(image_data)
-            product_image = self.env['product.image'].search([
+            product_image = self.env['product.image.relation'].search([
                 ('product_tmpl_id', '=', img_vals['product_tmpl_id']),
                 ('image_id', '=', image.id),
                 ])
             if not product_image:
                 vals = img_vals.copy()
                 vals['image_id'] = image.id
-                self.env['product.image'].create(vals)
+                self.env['product.image.relation'].create(vals)
