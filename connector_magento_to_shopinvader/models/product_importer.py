@@ -37,7 +37,7 @@ class BindingDataMixin(models.AbstractModel):
         if 'data' in vals:
             lang = self._context.get('lang', 'en_US')
             vals['data'] = {lang: vals['data']}
-        return super(BindingDataMixin, self).write(vals)
+        return super(BindingDataMixin, self).create(vals)
 
 
 class MagentoProductProduct(models.Model):
