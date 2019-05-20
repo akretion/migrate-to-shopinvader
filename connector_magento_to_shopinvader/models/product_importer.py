@@ -8,6 +8,8 @@ import base64
 from openerp import api, fields, models
 from odoo.addons.component.core import Component
 from odoo.addons.connector.components.mapper import mapping
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class BindingDataMixin(models.AbstractModel):
@@ -15,29 +17,27 @@ class BindingDataMixin(models.AbstractModel):
 
     data = fields.Serialized()
 
-    @api.model
-    def fields_get(self, allfields=None, attributes=None):
-        res = super(BindingDataMixin, self).fields_get(
-            allfields=allfields,
-            attributes=attributes)
-        if 'data' in res:
-            res['data']['translate'] = True
-        return res
-
-    def write(self, vals):
-        if 'data' in vals:
-            self.ensure_one()
-            lang = self._context.get('lang', 'en_US')
-            data = self.data
-            data[lang] = vals['data']
-            vals['data'] = data
-        return super(BindingDataMixin, self).write(vals)
-
-    def create(self, vals):
-        if 'data' in vals:
-            lang = self._context.get('lang', 'en_US')
-            vals['data'] = {lang: vals['data']}
-        return super(BindingDataMixin, self).create(vals)
+    def _synchronize_magento_record(self, backend_id):
+        backend = self.env['magento.backend'].browse(backend_id)
+        with backend.work_on(self._name) as work:
+            adapter = work.component(usage='backend.adapter')
+            records = self.search([('backend_id', '=', backend_id)])
+            total = len(records)
+            missing_ids = []
+            for idx, record in enumerate(records):
+                if idx % 10 == 0:
+                    _logger.info('progress {} / {}'.format(idx, total))
+                try:
+                    data = {}
+                    for storeview in backend.mapped(
+                            'website_ids.store_ids.storeview_ids'):
+                        data[storeview.code] = adapter.read(
+                            record.external_id,
+                            storeview_id=storeview.external_id)
+                except Exception as e:
+                    missing_ids.append(record.id)
+                record.write({'data': data})
+        return missing_ids
 
 
 class MagentoProductProduct(models.Model):
@@ -53,22 +53,6 @@ class MagentoProductTemplate(models.Model):
 class MagentoProductCategory(models.Model):
     _inherit = ['magento.product.category', 'binding.data.mixin']
     _name = 'magento.product.category'
-
-
-class ProductImportMapper(Component):
-    _inherit = 'magento.product.product.import.mapper'
-
-    @mapping
-    def data(self, record):
-        return {'data': record}
-
-
-class ProductCategoryImportMapper(Component):
-    _inherit = 'magento.product.category.import.mapper'
-
-    @mapping
-    def data(self, record):
-        return {'data': record}
 
 
 class CatalogImageImporter(Component):
