@@ -15,13 +15,17 @@ _logger = logging.getLogger(__name__)
 class BindingDataMixin(models.AbstractModel):
     _name = 'binding.data.mixin'
 
+    updated = fields.Boolean()
     data = fields.Serialized()
 
     def _synchronize_magento_record(self, backend_id):
         backend = self.env['magento.backend'].browse(backend_id)
         with backend.work_on(self._name) as work:
             adapter = work.component(usage='backend.adapter')
-            records = self.search([('backend_id', '=', backend_id)])
+            records = self.search([
+                ('backend_id', '=', backend_id),
+                ('updated', '=', False),
+            ])
             total = len(records)
             missing_ids = []
             for idx, record in enumerate(records):
@@ -36,7 +40,8 @@ class BindingDataMixin(models.AbstractModel):
                             storeview_id=storeview.external_id)
                 except Exception as e:
                     missing_ids.append(record.id)
-                record.write({'data': data})
+                record.write({'updated': True, 'data': data})
+                self._cr.commit()
         return missing_ids
 
 
